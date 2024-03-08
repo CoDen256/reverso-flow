@@ -1,5 +1,8 @@
 name: Publish Release
 
+permissions:
+  contents: write
+
 on:
   workflow_dispatch:
   push:
@@ -37,5 +40,5 @@ jobs:
         with:
           files: 'Flow.Launcher.Plugin.ReversoPython.zip'
           tag_name: "v${{steps.version.outputs.prop}}"
-        # env:
-          # GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
