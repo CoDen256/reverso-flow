@@ -1,8 +1,8 @@
 {
     "ID": "2f4e384e-76ce-45c3-aea2-b16f5e5c228s",
-    "ActionKeyword": "hp",
-    "Name": "Reverso Python",
-    "Description": "Python Reverso example plugin",
+    "ActionKeyword": "re",
+    "Name": "Reverso Flow",
+    "Description": "Reverso Context Translator",
     "Author": "Coden256",
     "Version": "1.0.0",
     "Language": "python",
