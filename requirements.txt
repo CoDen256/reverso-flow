@@ -1,3 +1,5 @@
 flowlauncher
 reverso-api
+requests
+beautifulsoup4
 lxml

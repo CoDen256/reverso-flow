@@ -35,7 +35,7 @@ class HelloWorld(FlowLauncher):
     def context_menu(self, data):
         return [
             {
-                "Title": "Hello World Python's Context menu",
+                "Title": "Hello <b>World Python's Contessxt menu</b>",
                 "SubTitle": "Press enter to open Flow the plugin's repo in GitHub",
                 "IcoPath": "Images/app.png",
                 "JsonRPCAction": {

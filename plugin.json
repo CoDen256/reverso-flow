@@ -1,10 +1,10 @@
 {
     "ID": "2f4e384e-76ce-45c3-aea2-b16f5e5c228s",
     "ActionKeyword": "re",
-    "Name": "Reverso Flow",
-    "Description": "Reverso Context Translator",
+    "Name": "Reverso-Flow",
+    "Description": "Reverso Search Engine",
     "Author": "Coden256",
-    "Version": "1.0.1",
+    "Version": "2.0.0",
     "Language": "python",
     "Website": "https://github.com/CoDen256/reverso-flow",
     "IcoPath": "Images\\app.png",
