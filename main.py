@@ -1,36 +1,67 @@
 # -*- coding: utf-8 -*-
 
-import sys,os
+import sys, os
+import time
+
 parent_folder_path = os.path.abspath(os.path.dirname(__file__))
 sys.path.append(parent_folder_path)
 sys.path.append(os.path.join(parent_folder_path, 'lib'))
 sys.path.append(os.path.join(parent_folder_path, 'plugin'))
 
-
+import lxml
+import requests
+from bs4 import BeautifulSoup
 import reverso_api
 from flowlauncher import FlowLauncher
 import webbrowser
+from collections import defaultdict
 
+help('modules')
 
-class HelloWorld(FlowLauncher):
-
+class ReversoFlow(FlowLauncher):
     path = "Images/app.png"
 
-    def query(self, query):
-        if (len(query) < 5): return []
+    const = {
+        "en": "english",
+        "de": "german",
+        "ru": "russian"
+    }
 
-        return list(map(lambda src_trg: self.query_entry(src_trg[0], src_trg[1]), self.reverse_limit(query, "de", "en", 5)))
-    
-    def query_entry(self, title, subtitle): 
+    lang_resolver = defaultdict(lambda: "english")
+
+    def __init__(self):
+        super().__init__()
+        for (k,v) in self.const.items():
+            self.lang_resolver[k] = v
+    def query(self, param: str = '') -> list:
+        return list(self.generate_results(param))
+
+    def generate_results(self, query):
+        if len(query) < 2:
+            return []
+
+        if len(query) < 5:
+            time.sleep(0.3)
+
+        src_lang = "de"
+        trg_lang = "en"
+        lang = 10
+        for (source, target) in self.get_reverse_limit(query, src_lang, trg_lang, lang):
+            yield self.query_entry(query, source, target)
+
+    def query_entry(self, title, subtitle, link):
         return {
-                "Title": title,
-                "SubTitle": subtitle,
-                "IcoPath": HelloWorld.path,
-                "JsonRPCAction": {
-                    "method": "open_url",
-                    "parameters": ["https://github.com/Flow-Launcher/Flow.Launcher"]
-                }
+            "Title": title,
+            "SubTitle": subtitle,
+            "IcoPath": ReversoFlow.path,
+            "JsonRPCAction": {
+                "method": "open_url",
+                "parameters": [link]
             }
+        }
+
+    def link(self, src_lang, trg_lang, query):
+        return f"https://context.reverso.net/translation/{self.lang_resolver[src_lang]}-{self.lang_resolver[trg_lang]}/{query}"
 
     def context_menu(self, data):
         return [
@@ -48,78 +79,37 @@ class HelloWorld(FlowLauncher):
     def open_url(self, url):
         webbrowser.open(url)
 
-    def reverse_limit(self, input, src_lang, trg_lang, limit):
-        out = self.reverse(input, src_lang, trg_lang)
-        return list([next(out) for _ in range(limit) ])
+    def get_reverse_limit(self, input, src_lang, trg_lang, limit):
+        count = 0
+        for item in self.get_reverse(input, src_lang, trg_lang):
+            if count <= limit:
+                yield item
+            count += 1
 
-    def reverse(self, input, src_lang, trg_lang):
+    def get_reverse(self, input, src_lang, trg_lang):
         for (source, target) in reverso_api.context.ReversoContextAPI(input, "", src_lang, trg_lang).get_examples():
-            yield (highlight_example(source.text, source.highlighted), highlight_example(target.text, source.highlighted))
+            source = self.highlight_example(source.text, source.highlighted)
+            target = self.highlight_example(target.text, source.highlighted)
+            yield source, target
 
+    def highlight_example(self, text, highlighted):
+        def insert_char(string, index, char):
+            return string[:index] + char + string[index:]
 
+        def highlight_once(string, start, end, shift):
+            s = insert_char(string, start + shift, "*")
+            s = insert_char(s, end + shift + 1, "*")
+            return s
 
-def highlight_example(text, highlighted):
-    """'Highlights' ALL the highlighted parts of the word usage example with * characters.
+        shift = 0
+        for start, end in highlighted:
+            text = highlight_once(text, start, end, shift)
+            shift += 2
+        return text
 
-    Args:
-        text: The text of the example
-        highlighted: Indexes of the highlighted parts' indexes
-
-    Returns:
-        The highlighted word usage example
-
-    """
-
-    def insert_char(string, index, char):
-        """Inserts the given character into a string.
-
-        Example:
-            string = "abc"
-            index = 1
-            char = "+"
-            Returns: "a+bc"
-
-        Args:
-            string: Given string
-            index: Index where to insert
-            char: Which char to insert
-
-        Return:
-            String string with character char inserted at index index.
-        """
-
-        return string[:index] + char + string[index:]
-
-    def highlight_once(string, start, end, shift):
-        """'Highlights' ONE highlighted part of the word usage example with two * characters.
-
-        Example:
-            string = "This is a sample string"
-            start = 0
-            end = 4
-            shift = 0
-            Returns: "*This* is a sample string"
-
-        Args:
-            string: The string to be highlighted
-            start: The start index of the highlighted part
-            end: The end index of the highlighted part
-            shift: How many highlighting chars were already inserted (to get right indexes)
-
-        Returns:
-            The highlighted string.
-
-        """
-
-        s = insert_char(string, start + shift, "*")
-        s = insert_char(s, end + shift + 1, "*")
-        return s
-
-    shift = 0
-    for start, end in highlighted:
-        text = highlight_once(text, start, end, shift)
-        shift += 2
-    return text
 
 if __name__ == "__main__":
-    h = HelloWorld()
+    h = ReversoFlow()
+
+    source = BeautifulSoup(requests.get("https://google.com").text, features="lxml")
+
