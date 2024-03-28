@@ -61,6 +61,20 @@ class ReversoFlow(FlowLauncher):
 
     # :drn                <src> -> de + ru + en
 
+    def get_help_message(self):
+        link = "https://context.reverso.net/translation/"
+        return [
+            self.query_entry(":n ", ":n <any lang> -> english ", link),
+            self.query_entry(":d ", ":d <any lang> -> deutsch ", link),
+            self.query_entry(":r ", ":r <any lang> -> russian ", link),
+            self.query_entry("<text> :en", "<english text> -> deutsch", link),
+            self.query_entry("<text> :de", "<german text> -> english", link),
+            self.query_entry("<text> :ru", "<russian text> -> english + deutsch", link),
+            self.query_entry(":<target>* [keyboard-lang]", "<keyboard-lang> -> <target>*", link),
+            self.query_entry(":<target>* <text> <src>", "<src> -> <targets>*", link),
+
+        ]
+
     def get_override(self, query):
         src = query.split(":")
         if len(src) == 1: return None
@@ -102,12 +116,13 @@ class ReversoFlow(FlowLauncher):
         return layout
 
     def query(self, param: str = '') -> list:
-        if len(param) < 2: return []
-        if len(param) < 5: time.sleep(1)
+        query = self.clean_query(param)
+        if len(query) < 3: return self.get_help_message()
+        if len(query) < 5: time.sleep(1)
 
         out = []
         langs = self.get_langs(param)
-        query = self.clean_query(param)
+
         for (src, trg) in langs:
             if (src == trg): continue
             out.append(
@@ -197,7 +212,7 @@ class ReversoFlow(FlowLauncher):
         return text
 
     def clean_query(self, param):
-        return re.sub(":\w\w$|^:\w{,3} ", "", param.strip())
+        return re.sub(":\\w\\w$|^:\\w{,3}\s?", "", param.strip())
 
 
 def get_layout():
@@ -223,7 +238,7 @@ def get_layout_hex():
 
 if __name__ == "__main__":
     h = ReversoFlow()
-    # print(h.clean_query(":r Auto"))
+    # print(h.clean_query(":ndr Auto"))
     # print(h.get_langs(":dre auto :ru"))
     # print(h.get_url_and_lang("what is it"))
     # pprint.pprint(h.query("Auto"))
