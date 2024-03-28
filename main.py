@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-import sys, os
+import sys
 import time
 import os
 
@@ -10,23 +10,11 @@ sys.path.append(os.path.join(parent_folder_path, 'lib'))
 sys.path.append(os.path.join(parent_folder_path, 'plugin'))
 sys.path.append(os.path.join(parent_folder_path, 'lib/lxml'))
 
-from lxml import etree
-import requests
-from bs4 import BeautifulSoup
 import reverso_api
 from flowlauncher import FlowLauncher
 import webbrowser
 from collections import defaultdict
 
-with open("modules", "a") as f:
-    f.writelines("\nRUNNING\n")
-    f.writelines(",".join(sys.modules.keys()))
-    f.writelines(["\n"])
-    f.writelines([parent_folder_path, "\n", __file__, "\n", str(sys.argv), "\n", os.__file__, "\n"])
-
-
-# source = BeautifulSoup(requests.get("https://google.com").text, features="lxml")
-# help('modules')
 
 class ReversoFlow(FlowLauncher):
     path = "Images/app.png"
@@ -121,7 +109,3 @@ class ReversoFlow(FlowLauncher):
 
 if __name__ == "__main__":
     h = ReversoFlow()
-    # print(h.query("hallo"))
-    # for i in h.get_reverse("Hallo", "de", "en"):
-    #     print(i)
-    # source = BeautifulSoup(requests.get("https://google.com").text, features="lxml")

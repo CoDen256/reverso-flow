@@ -8,4 +8,4 @@ Expand-Archive -Path ~\Downloads\Reverso-Flow-$tag.zip -DestinationPath "$FLOW_H
 Remove-Item -Path ~\Downloads\Reverso-Flow-$tag.zip
 
 
-Start-Process -FilePath "~\scoop\apps\flow-launcher\current\Flow.Launcher.exe"
+Start-Process -FilePath "$FLOW_HOME\Flow.Launcher.exe"
