@@ -1,6 +1,6 @@
 {
     "ID": "2f4e384e-76ce-45c3-aea2-b16f5e5c228s",
-    "ActionKeyword": "re",
+    "ActionKeywords": ["re", "rd", "rr"],
     "Name": "Reverso-Flow",
     "Description": "Reverso Search Engine",
     "Author": "Coden256",

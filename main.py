@@ -10,6 +10,8 @@ sys.path.append(os.path.join(parent_folder_path, 'lib'))
 sys.path.append(os.path.join(parent_folder_path, 'plugin'))
 sys.path.append(os.path.join(parent_folder_path, 'lib/lxml'))
 
+import requests
+import re
 import reverso_api
 from flowlauncher import FlowLauncher
 import webbrowser
@@ -25,28 +27,66 @@ class ReversoFlow(FlowLauncher):
         "ru": "russian"
     }
 
+    def_src = "de"
+    def_trg = "en"
+
     lang_resolver = defaultdict(lambda: "english")
+    lang_rev_resolver = defaultdict(lambda: "en")
+
+    russian_alpha = re.compile("[а-яА-Я]")
+    german_alpha = re.compile("[äÄüÜöÖß]")
+
+    # ru -> en + de (exact translation)
+    # ru -> de (exact translation)
+
+    # en -> ru (exact translation)
+    # en -> de (spelling context, translation for en)
+
+    # de -> en (spelling, context, translation for de)
+    # de -> ru (exact translation)
+
+    # rd ->
+    # r + russian ->
 
     def __init__(self):
         super().__init__()
         for (k, v) in self.const.items():
             self.lang_resolver[k] = v
+            self.lang_rev_resolver[v] = k
+
+    def get_lang(self, query):
+        # if self.is_russian(query): return
+
+        return [self.def_src], [self.def_trg]
+
 
     def query(self, param: str = '') -> list:
-        return list(self.generate_results(param))
+        if len(param) < 2: return []
+        if len(param) < 5: time.sleep(1)
 
-    def generate_results(self, query):
-        if len(query) < 2:
-            return []
+        for (src, trg) in self.get_langs(param):
 
-        if len(query) < 5:
-            time.sleep(1)
+        return list(self.generate_results(param, sr))
 
-        src_lang = "de"
-        trg_lang = "en"
-        lang = 10
-        for (source, target) in self.get_reverse_limit(query, src_lang, trg_lang, lang):
-            yield self.query_entry(source, target, self.link(source, target, query))
+
+    def get_target_lang(self, query):
+        if (query.startswith("re ")):
+            return
+
+    def is_german(self, query):
+        return bool(self.german_alpha.search(query))
+
+    def is_russian(self, query):
+        return bool(self.russian_alpha.search(query))
+
+    def generate_results(self, query, src, trg):
+
+        url = self.link(query, src_lang, trg_lang)
+        if not url: return []
+        max_contexts = 10
+        max_translations = 5
+        for (source, target) in self.get_reverse(query, src_lang, trg_lang, max_contexts, max_translations):
+            yield self.query_entry(source, target, url)
 
     def query_entry(self, title, subtitle, link):
         return {
@@ -78,18 +118,20 @@ class ReversoFlow(FlowLauncher):
     def open_url(self, url):
         webbrowser.open(url)
 
-    def get_reverse_limit(self, input, src_lang, trg_lang, limit):
-        count = 0
-        for item in self.get_reverse(input, src_lang, trg_lang):
-            if count <= limit:
-                yield item
-            else:
-                return
-            count += 1
+    def get_reverse(self, input, src_lang, trg_lang, max_contexts, max_translations):
+        api = reverso_api.context.ReversoContextAPI(input, "", src_lang, trg_lang)
 
-    def get_reverse(self, input, src_lang, trg_lang):
-        for (source, target) in reverso_api.context.ReversoContextAPI(input, "", src_lang, trg_lang).get_examples():
+        translations = []
+        for translation in api.get_translations():
+            if len(translations) >= max_translations: break
+            translations.append(translation.translation)
+        yield " | ".join(translations), ""
+
+        contexts = 0
+        for (source, target) in api.get_examples():
+            if contexts >= max_contexts: break
             yield source.text, target.text
+            contexts += 1
 
     def highlight_example(self, text, highlighted):
         def insert_char(string, index, char):
@@ -109,3 +151,5 @@ class ReversoFlow(FlowLauncher):
 
 if __name__ == "__main__":
     h = ReversoFlow()
+    # print(h.get_url_and_lang("what is it"))
+    # print(h.query("was soll das"))
