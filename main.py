@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
-
+import itertools
+import pprint
 import sys
 import time
 import os
@@ -35,9 +36,10 @@ class ReversoFlow(FlowLauncher):
 
     russian_alpha = re.compile("[а-яА-Я]")
     german_alpha = re.compile("[äÄüÜöÖß]")
+    max_contexts = 10
+    max_translations = 10
 
     # ru -> en + de (exact translation)
-    # ru -> de (exact translation)
 
     # en -> ru (exact translation)
     # en -> de (spelling context, translation for en)
@@ -54,20 +56,25 @@ class ReversoFlow(FlowLauncher):
             self.lang_resolver[k] = v
             self.lang_rev_resolver[v] = k
 
-    def get_lang(self, query):
-        # if self.is_russian(query): return
+    def get_langs(self, query):
+        if self.is_russian(query): return [("ru", "en"),("ru", "de")]
 
-        return [self.def_src], [self.def_trg]
-
+        return [("de", "en"),("de", "ru")]
 
     def query(self, param: str = '') -> list:
         if len(param) < 2: return []
         if len(param) < 5: time.sleep(1)
 
-        for (src, trg) in self.get_langs(param):
+        out = []
+        langs = self.get_langs(param)
+        for (src, trg) in langs:
+            out.append(list(self.generate_results(param, src, trg, self.max_contexts//len(langs), self.max_translations)))
 
-        return list(self.generate_results(param, sr))
-
+        result = []
+        for mul in itertools.zip_longest(*out):
+            for i in mul:
+                if i: result.append(i)
+        return result
 
     def get_target_lang(self, query):
         if (query.startswith("re ")):
@@ -79,13 +86,11 @@ class ReversoFlow(FlowLauncher):
     def is_russian(self, query):
         return bool(self.russian_alpha.search(query))
 
-    def generate_results(self, query, src, trg):
-
-        url = self.link(query, src_lang, trg_lang)
+    def generate_results(self, query, src, trg, max_contexts, max_translations):
+        url = self.link(src, trg, query)
         if not url: return []
-        max_contexts = 10
-        max_translations = 5
-        for (source, target) in self.get_reverse(query, src_lang, trg_lang, max_contexts, max_translations):
+
+        for (source, target) in self.get_reverse(query, src, trg, max_contexts, max_translations):
             yield self.query_entry(source, target, url)
 
     def query_entry(self, title, subtitle, link):
@@ -125,12 +130,16 @@ class ReversoFlow(FlowLauncher):
         for translation in api.get_translations():
             if len(translations) >= max_translations: break
             translations.append(translation.translation)
-        yield " | ".join(translations), ""
+        if translations:
+            yield " | ".join(translations), ""
 
         contexts = 0
         for (source, target) in api.get_examples():
             if contexts >= max_contexts: break
-            yield source.text, target.text
+            if (src_lang == "ru"):
+                yield target.text, source.text
+            else:
+                yield source.text, target.text
             contexts += 1
 
     def highlight_example(self, text, highlighted):
@@ -152,4 +161,4 @@ class ReversoFlow(FlowLauncher):
 if __name__ == "__main__":
     h = ReversoFlow()
     # print(h.get_url_and_lang("what is it"))
-    # print(h.query("was soll das"))
+    # pprint.pprint(h.query("Voreingenommenheit"))
