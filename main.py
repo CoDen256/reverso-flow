@@ -12,6 +12,7 @@ sys.path.append(os.path.join(parent_folder_path, 'plugin'))
 sys.path.append(os.path.join(parent_folder_path, 'lib/lxml'))
 
 import requests
+import ctypes
 import re
 import reverso_api
 from flowlauncher import FlowLauncher
@@ -23,9 +24,9 @@ class ReversoFlow(FlowLauncher):
     path = "Images/app.png"
 
     const = {
-        "en": "english",
-        "de": "german",
-        "ru": "russian"
+        "en": ("english", "e"),
+        "de": ("german", "d"),
+        "ru": ("russian", "r"),
     }
 
     def_src = "de"
@@ -33,33 +34,72 @@ class ReversoFlow(FlowLauncher):
 
     lang_resolver = defaultdict(lambda: "english")
     lang_rev_resolver = defaultdict(lambda: "en")
+    action_resolver = defaultdict(lambda: "en")
 
     russian_alpha = re.compile("[а-яА-Я]")
     german_alpha = re.compile("[äÄüÜöÖß]")
     max_contexts = 10
     max_translations = 10
 
-    # ru -> en + de (exact translation)
+    for (k, full_action) in const.items():
+        full, action = full_action
+        lang_resolver[k] = full
+        lang_rev_resolver[full] = k
+        action_resolver[action] = k
 
-    # en -> ru (exact translation)
-    # en -> de (spelling context, translation for en)
+    # [<russian>]          ru -> en + de (exact translation)
+    # [<keyboard-layout>]  de -> en (spelling, context, translation)
+    #                           en -> de (spelling context, translation)
 
-    # de -> en (spelling, context, translation for de)
-    # de -> ru (exact translation)
+    # [<input> :en]        en ->
 
-    # rd ->
-    # r + russian ->
+    # :er                 <src> -> en+ru  (exact translation) (0)
+    # :e                  <src> -> en      for en) (2)
 
-    def __init__(self):
-        super().__init__()
-        for (k, v) in self.const.items():
-            self.lang_resolver[k] = v
-            self.lang_rev_resolver[v] = k
+    # :d                  <src> -> de     (spelling, context, translation for de) (3)
+    # :dr                 <src> -> de+ru  (exact translation) (1)
+
+    # :drn                <src> -> de + ru + en
+
+    def get_override(self, query):
+        src = query.split(":")
+        if len(src) == 1: return None
+        override = src[-1]
+        if override in self.const.keys():
+            return override
+        else:
+            return None
 
     def get_langs(self, query):
-        if self.is_russian(query): return [("ru", "en"),("ru", "de")]
+        if self.is_russian(query): return [("ru", "en"), ("ru", "de")]
 
-        return [("de", "en"),("de", "ru")]
+        src = self.get_src_lang(query)
+        targets = self.get_target_langs(query)
+
+        if targets: return [(src,t) for t in targets]
+
+        # re <src:de> or re <src:en>
+        if (src == "de"):
+            return [("de", "en")]
+        if (src == "en"):
+            return [("en", "de")]
+        if (src == "ru"):
+            return [("ru", "en"), ("ru", "de")]
+        return [("en", "de"), ("de", "en"), ("ru", "en")]
+
+    def get_target_langs(self, query):
+        if not query.startswith(":"): return []
+        actions = query.split(" ", 1)[0][1:]
+        return set(map(lambda x: self.action_resolver[x], list(actions)))
+
+    def get_src_lang(self, query):
+        if self.is_german(query):
+            return "de"
+        elif override := self.get_override(query):
+            return override
+
+        layout = get_layout()
+        return layout
 
     def query(self, param: str = '') -> list:
         if len(param) < 2: return []
@@ -67,18 +107,17 @@ class ReversoFlow(FlowLauncher):
 
         out = []
         langs = self.get_langs(param)
+        query = self.clean_query(param)
         for (src, trg) in langs:
-            out.append(list(self.generate_results(param, src, trg, self.max_contexts//len(langs), self.max_translations)))
+            if (src == trg): continue
+            out.append(
+                list(self.generate_results(query, src, trg, self.max_contexts // len(langs), self.max_translations)))
 
         result = []
         for mul in itertools.zip_longest(*out):
             for i in mul:
                 if i: result.append(i)
         return result
-
-    def get_target_lang(self, query):
-        if (query.startswith("re ")):
-            return
 
     def is_german(self, query):
         return bool(self.german_alpha.search(query))
@@ -89,7 +128,7 @@ class ReversoFlow(FlowLauncher):
     def generate_results(self, query, src, trg, max_contexts, max_translations):
         url = self.link(src, trg, query)
         if not url: return []
-
+        yield self.query_entry(f"{src}->{trg} [c:{max_contexts}|t:{max_translations}]", query+"\n"+url, url)
         for (source, target) in self.get_reverse(query, src, trg, max_contexts, max_translations):
             yield self.query_entry(source, target, url)
 
@@ -157,8 +196,34 @@ class ReversoFlow(FlowLauncher):
             shift += 2
         return text
 
+    def clean_query(self, param):
+        return re.sub(":\w\w$|^:\w{,3} ", "", param.strip())
+
+
+def get_layout():
+    lid_hex = get_layout_hex()
+    mapping = {
+        "0x407": "de",
+        "0x409": "en",
+        "0x419": "ru"
+    }
+    if (lid_hex not in mapping): return "en"
+    return mapping[lid_hex]
+
+
+def get_layout_hex():
+    user32 = ctypes.WinDLL('user32', use_last_error=True)
+    curr_window = user32.GetForegroundWindow()
+    thread_id = user32.GetWindowThreadProcessId(curr_window, 0)
+    klid = user32.GetKeyboardLayout(thread_id)
+    lid = klid & (2 ** 16 - 1)
+    lid_hex = hex(lid)
+    return lid_hex
+
 
 if __name__ == "__main__":
     h = ReversoFlow()
+    # print(h.clean_query(":r Auto"))
+    # print(h.get_langs(":dre auto :ru"))
     # print(h.get_url_and_lang("what is it"))
-    # pprint.pprint(h.query("Voreingenommenheit"))
+    # pprint.pprint(h.query("Auto"))
