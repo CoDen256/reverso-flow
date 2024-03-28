@@ -2,6 +2,7 @@
 
 import sys, os
 import time
+import os
 
 parent_folder_path = os.path.abspath(os.path.dirname(__file__))
 sys.path.append(parent_folder_path)
@@ -21,6 +22,8 @@ with open("modules", "a") as f:
     f.writelines("\nRUNNING\n")
     f.writelines(",".join(sys.modules.keys()))
     f.writelines(["\n"])
+    f.writelines([parent_folder_path, "\n", __file__, "\n", str(sys.argv), "\n", os.__file__, "\n"])
+
 
 # source = BeautifulSoup(requests.get("https://google.com").text, features="lxml")
 # help('modules')
@@ -38,8 +41,9 @@ class ReversoFlow(FlowLauncher):
 
     def __init__(self):
         super().__init__()
-        for (k,v) in self.const.items():
+        for (k, v) in self.const.items():
             self.lang_resolver[k] = v
+
     def query(self, param: str = '') -> list:
         return list(self.generate_results(param))
 
@@ -48,13 +52,13 @@ class ReversoFlow(FlowLauncher):
             return []
 
         if len(query) < 5:
-            time.sleep(0.3)
+            time.sleep(1)
 
         src_lang = "de"
         trg_lang = "en"
         lang = 10
         for (source, target) in self.get_reverse_limit(query, src_lang, trg_lang, lang):
-            yield self.query_entry(query, source, target)
+            yield self.query_entry(source, target, self.link(source, target, query))
 
     def query_entry(self, title, subtitle, link):
         return {
@@ -91,13 +95,13 @@ class ReversoFlow(FlowLauncher):
         for item in self.get_reverse(input, src_lang, trg_lang):
             if count <= limit:
                 yield item
+            else:
+                return
             count += 1
 
     def get_reverse(self, input, src_lang, trg_lang):
         for (source, target) in reverso_api.context.ReversoContextAPI(input, "", src_lang, trg_lang).get_examples():
-            source = self.highlight_example(source.text, source.highlighted)
-            target = self.highlight_example(target.text, source.highlighted)
-            yield source, target
+            yield source.text, target.text
 
     def highlight_example(self, text, highlighted):
         def insert_char(string, index, char):
@@ -117,6 +121,7 @@ class ReversoFlow(FlowLauncher):
 
 if __name__ == "__main__":
     h = ReversoFlow()
-
-    source = BeautifulSoup(requests.get("https://google.com").text, features="lxml")
-
+    # print(h.query("hallo"))
+    # for i in h.get_reverse("Hallo", "de", "en"):
+    #     print(i)
+    # source = BeautifulSoup(requests.get("https://google.com").text, features="lxml")
