@@ -33,7 +33,7 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install -r ./requirements.txt -t ./lib
-          zip -r Flow.Launcher.Plugin.ReversoPython.zip . -x '*.git*'
+          zip -r Reverso-Flow-${{steps.version.outputs.prop}}.zip . -x '*.git*'
       - name: Publish
         if: success()
         uses: softprops/action-gh-release@v1
