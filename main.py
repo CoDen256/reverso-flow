@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 import itertools
 import os
+import pprint
 import sys
 import time
 
@@ -11,7 +12,7 @@ sys.path.append(os.path.join(parent_folder_path, 'plugin'))
 
 import ctypes
 import re
-import reverso_api
+from reverso_context_api import Client
 from flowlauncher import FlowLauncher
 import webbrowser
 from collections import defaultdict
@@ -175,38 +176,23 @@ class ReversoFlow(FlowLauncher):
         webbrowser.open(url)
 
     def get_reverse(self, input, src_lang, trg_lang, max_contexts, max_translations):
-        api = reverso_api.context.ReversoContextAPI(input, "", src_lang, trg_lang)
+        api = Client(src_lang, trg_lang)
 
         translations = []
-        for translation in api.get_translations():
+        for translation in api.get_translations(input):
             if len(translations) >= max_translations: break
-            translations.append(translation.translation)
+            translations.append(translation)
         if translations:
             yield " | ".join(translations), ""
 
         contexts = 0
-        for (source, target) in api.get_examples():
+        for (source, target) in api.get_translation_samples(input, source_lang=src_lang, target_lang=trg_lang, cleanup=True):
             if contexts >= max_contexts: break
             if (src_lang == "ru"):
-                yield target.text, source.text
+                yield target, source
             else:
-                yield source.text, target.text
+                yield source, target
             contexts += 1
-
-    def highlight_example(self, text, highlighted):
-        def insert_char(string, index, char):
-            return string[:index] + char + string[index:]
-
-        def highlight_once(string, start, end, shift):
-            s = insert_char(string, start + shift, "*")
-            s = insert_char(s, end + shift + 1, "*")
-            return s
-
-        shift = 0
-        for start, end in highlighted:
-            text = highlight_once(text, start, end, shift)
-            shift += 2
-        return text
 
     def clean_query(self, param):
         return re.sub(":\\w\\w$|^:\\w{,3}\s?", "", param.strip())
@@ -232,10 +218,19 @@ def get_layout_hex():
     lid_hex = hex(lid)
     return lid_hex
 
+def executed_by_flow_launcher():
+    return any(["embeddable" in x.lower() for x in sys.path])
+
+def main(f):
+    pass
+    print(os.getcwd())
+    # print(f.clean_query(":ndr Auto"))
+    # print(f.get_langs(":dre auto :ru"))
+    # print(f.get_url_and_lang("what is it"))
+    # pprint.pprint(f.query("Auto"))
+    # reverse = list(f.get_reverse("Auto", "de", "en", 10, 10))
+    # pprint.pprint(reverse)
 
 if __name__ == "__main__":
     h = ReversoFlow()
-    # print(h.clean_query(":ndr Auto"))
-    # print(h.get_langs(":dre auto :ru"))
-    # print(h.get_url_and_lang("what is it"))
-    # pprint.pprint(h.query("Auto"))
+    if not executed_by_flow_launcher(): main(h)
