@@ -141,7 +141,7 @@ class ReversoFlow(FlowLauncher):
     def generate_results(self, query, src, trg, max_contexts, max_translations):
         url = self.link(src, trg, query)
         if not url: return []
-        yield self.query_entry(f"{src}->{trg} [c:{max_contexts}|t:{max_translations}]", query+"\n"+url, url)
+        # yield self.query_entry(f"{src}->{trg} [c:{max_contexts}|t:{max_translations}]", query+"\n"+url, url)
         for (source, target) in self.get_reverse(query, src, trg, max_contexts, max_translations):
             yield self.query_entry(source, target, url)
 
